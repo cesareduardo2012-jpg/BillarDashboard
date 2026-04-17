@@ -6,25 +6,26 @@ import { TableSession } from './screens/TableSession';
 import { Sales } from './screens/Sales';
 import { Inventory } from './screens/Inventory';
 import { CashRegister } from './screens/CashRegister';
+import { TablesEdit } from './screens/TablesEdit'; // 👈 NUEVO
 import { useApp } from './context/AppContext';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useApp();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useApp();
-  
+
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <>{children}</>;
 }
 
@@ -50,6 +51,14 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <Tables />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/tables/edit', // 👈 NUEVO
+    element: (
+      <ProtectedRoute>
+        <TablesEdit />
       </ProtectedRoute>
     ),
   },

@@ -1,9 +1,10 @@
 import { motion } from 'motion/react';
-import { Circle, Play, Square, Clock } from 'lucide-react';
+import { Circle, Play, Square, Clock, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Layout } from '../components/Layout';
 import { Button } from '../components/ui/button';
 import { useNavigate } from 'react-router';
+import { Pencil } from "lucide-react";
 
 export function Tables() {
   const { tables, startTableSession } = useApp();
@@ -33,6 +34,15 @@ export function Tables() {
         <div>
           <h1 className="text-3xl font-bold text-white mb-2">Gestión de Mesas</h1>
           <p className="text-zinc-500">Administra las sesiones de billar</p>
+          <div className="flex">
+            <Button
+              onClick={() => navigate('/tables/edit')}
+              className="ml-auto bg-green-500 hover:bg-green-600 text-black font-semibold shadow-lg shadow-green-500/30"
+            >
+              <Pencil className="w-4 h-4 mr-2" />
+              Editar Mesas
+            </Button>
+          </div>
         </div>
 
         {/* Tables Grid */}

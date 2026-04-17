@@ -16,6 +16,7 @@ export function Inventory() {
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({
+    id: '',
     name: '',
     price: '',
     stock: '',
@@ -29,6 +30,7 @@ export function Inventory() {
   const openEditModal = (product: Product) => {
     setEditingProduct(product);
     setFormData({
+      id: product.id,
       name: product.name,
       price: product.price.toString(),
       stock: product.stock.toString(),
@@ -40,6 +42,7 @@ export function Inventory() {
   const openAddModal = () => {
     setEditingProduct(null);
     setFormData({
+      id: '',
       name: '',
       price: '',
       stock: '',
@@ -189,6 +192,7 @@ export function Inventory() {
             <table className="w-full">
               <thead className="bg-zinc-800 border-b border-zinc-700">
                 <tr>
+                  
                   <th className="px-6 py-4 text-left text-sm font-semibold text-zinc-400">
                     Producto
                   </th>
@@ -291,6 +295,18 @@ export function Inventory() {
 
           <div className="space-y-4">
             <div>
+              <Label className="text-zinc-400">ID Producto</Label>
+              <Input
+                value={formData.id}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                placeholder="Escanea Código de"
+              />
+            </div>
+
+            <div>
               <Label className="text-zinc-400">Nombre</Label>
               <Input
                 value={formData.name}
@@ -323,7 +339,7 @@ export function Inventory() {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-zinc-400">Precio</Label>
+                <Label className="text-zinc-400">Precio Compra</Label>
                 <Input
                   type="number"
                   value={formData.price}
@@ -348,6 +364,20 @@ export function Inventory() {
                   placeholder="0"
                 />
               </div>
+              <div>
+                <Label className="text-zinc-400">Precio Venta</Label>
+                <Input
+                  type="number"
+                  value={formData.price}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: e.target.value })
+                  }
+                  className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                  placeholder="0.00"
+                  step="0.01"
+                />
+              </div>
+              
             </div>
 
             <div className="flex gap-3 pt-4">

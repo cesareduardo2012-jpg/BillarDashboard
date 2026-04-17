@@ -52,12 +52,17 @@ interface AppContextType extends AppState {
   createPOSSale: (items: CartItem[]) => void;
   updateProduct: (product: Product) => void;
   addProduct: (product: Omit<Product, 'id'>) => void;
+
+  addTable: (name: string) => void;
+  updateTable: (id: number, newName: string) => void;
+  deleteTable: (id: number) => void;
+
   closeDailyCut: (cashDifference: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const HOURLY_RATE = 50; // Price per hour for table usage
+const HOURLY_RATE = 50;
 
 const initialProducts: Product[] = [
   { id: '1', name: 'Corona', price: 35, stock: 48, category: 'beer' },
@@ -82,47 +87,88 @@ const initialTables: Table[] = Array.from({ length: 8 }, (_, i) => ({
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => {
     const saved = localStorage.getItem('laBolaAppState');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    return {
-      tables: initialTables,
-      products: initialProducts,
-      sales: [],
-      dailyEarnings: 0,
-      isAuthenticated: false,
-      currentUser: null,
-    };
+    return saved
+      ? JSON.parse(saved)
+      : {
+          tables: initialTables,
+          products: initialProducts,
+          sales: [],
+          dailyEarnings: 0,
+          isAuthenticated: false,
+          currentUser: null,
+        };
   });
 
-  // Timer effect for active tables
+  // 🔥 CRUD MESAS
+  const addTable = (name: string) => {
+    const newTable: Table = {
+      id: Date.now(),
+      name,
+      status: 'available',
+      startTime: null,
+      elapsedSeconds: 0,
+      products: [],
+    };
+
+    setState((prev) => ({
+      ...prev,
+      tables: [...prev.tables, newTable],
+    }));
+  };
+
+  const updateTable = (id: number, newName: string) => {
+    setState((prev) => ({
+      ...prev,
+      tables: prev.tables.map((t) =>
+        t.id === id ? { ...t, name: newName } : t
+      ),
+    }));
+  };
+
+  const deleteTable = (id: number) => {
+    setState((prev) => {
+      const table = prev.tables.find((t) => t.id === id);
+
+      if (table?.status === 'occupied') {
+        alert('No puedes eliminar una mesa en uso');
+        return prev;
+      }
+
+      return {
+        ...prev,
+        tables: prev.tables.filter((t) => t.id !== id),
+      };
+    });
+  };
+
+  // ⏱ Timer
   useEffect(() => {
     const interval = setInterval(() => {
       setState((prev) => {
         const now = Date.now();
-        const updatedTables = prev.tables.map((table) => {
-          if (table.status === 'occupied' && table.startTime) {
-            return {
-              ...table,
-              elapsedSeconds: Math.floor((now - table.startTime) / 1000),
-            };
-          }
-          return table;
-        });
-        return { ...prev, tables: updatedTables };
+        return {
+          ...prev,
+          tables: prev.tables.map((table) =>
+            table.status === 'occupied' && table.startTime
+              ? {
+                  ...table,
+                  elapsedSeconds: Math.floor((now - table.startTime) / 1000),
+                }
+              : table
+          ),
+        };
       });
     }, 1000);
 
     return () => clearInterval(interval);
   }, []);
 
-  // Save to localStorage
+  // 💾 Persistencia
   useEffect(() => {
     localStorage.setItem('laBolaAppState', JSON.stringify(state));
   }, [state]);
 
-  const login = (username: string, password: string): boolean => {
-    // Simple authentication (in real app, this would be server-side)
+  const login = (username: string, password: string) => {
     if (username === 'admin' && password === 'admin') {
       setState((prev) => ({
         ...prev,
@@ -182,13 +228,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         total,
       };
 
-      // Update product stock
       const updatedProducts = prev.products.map((product) => {
-        const soldItem = table.products.find((item) => item.productId === product.id);
-        if (soldItem) {
-          return { ...product, stock: product.stock - soldItem.quantity };
-        }
-        return product;
+        const soldItem = table.products.find(
+          (item) => item.productId === product.id
+        );
+        return soldItem
+          ? { ...product, stock: product.stock - soldItem.quantity }
+          : product;
       });
 
       return {
@@ -215,40 +261,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({
       ...prev,
       tables: prev.tables.map((table) => {
-        if (table.id === tableId) {
-          const existingItem = table.products.find(
-            (item) => item.productId === product.id
-          );
-          if (existingItem) {
-            return {
-              ...table,
-              products: table.products.map((item) =>
-                item.productId === product.id
-                  ? { ...item, quantity: item.quantity + quantity }
-                  : item
-              ),
-            };
-          }
-          return {
-            ...table,
-            products: [
-              ...table.products,
-              {
+        if (table.id !== tableId) return table;
+
+        const existing = table.products.find(p => p.productId === product.id);
+
+        return {
+          ...table,
+          products: existing
+            ? table.products.map(p =>
+                p.productId === product.id
+                  ? { ...p, quantity: p.quantity + quantity }
+                  : p
+              )
+            : [...table.products, {
                 productId: product.id,
                 name: product.name,
                 price: product.price,
-                quantity,
-              },
-            ],
-          };
-        }
-        return table;
+                quantity
+              }]
+        };
       }),
     }));
   };
 
   const createPOSSale = (items: CartItem[]) => {
-    const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+
     const sale: Sale = {
       id: `sale-${Date.now()}`,
       timestamp: Date.now(),
@@ -257,47 +295,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       total,
     };
 
-    setState((prev) => {
-      // Update product stock
-      const updatedProducts = prev.products.map((product) => {
-        const soldItem = items.find((item) => item.productId === product.id);
-        if (soldItem) {
-          return { ...product, stock: product.stock - soldItem.quantity };
-        }
-        return product;
-      });
-
-      return {
-        ...prev,
-        products: updatedProducts,
-        sales: [...prev.sales, sale],
-        dailyEarnings: prev.dailyEarnings + total,
-      };
-    });
+    setState((prev) => ({
+      ...prev,
+      products: prev.products.map(p => {
+        const sold = items.find(i => i.productId === p.id);
+        return sold ? { ...p, stock: p.stock - sold.quantity } : p;
+      }),
+      sales: [...prev.sales, sale],
+      dailyEarnings: prev.dailyEarnings + total,
+    }));
   };
 
   const updateProduct = (product: Product) => {
-    setState((prev) => ({
+    setState(prev => ({
       ...prev,
-      products: prev.products.map((p) => (p.id === product.id ? product : p)),
+      products: prev.products.map(p => p.id === product.id ? product : p),
     }));
   };
 
   const addProduct = (product: Omit<Product, 'id'>) => {
-    const newProduct: Product = {
-      ...product,
-      id: `product-${Date.now()}`,
-    };
-    setState((prev) => ({
+    setState(prev => ({
       ...prev,
-      products: [...prev.products, newProduct],
+      products: [...prev.products, { ...product, id: `product-${Date.now()}` }],
     }));
   };
 
   const closeDailyCut = (cashDifference: number) => {
-    // In a real app, this would save to database and generate report
-    console.log('Daily cut closed with difference:', cashDifference);
-    setState((prev) => ({
+    console.log('Corte:', cashDifference);
+    setState(prev => ({
       ...prev,
       sales: [],
       dailyEarnings: 0,
@@ -316,6 +341,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createPOSSale,
         updateProduct,
         addProduct,
+        addTable,
+        updateTable,
+        deleteTable,
         closeDailyCut,
       }}
     >
@@ -326,8 +354,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
 export function useApp() {
   const context = useContext(AppContext);
-  if (!context) {
-    throw new Error('useApp must be used within AppProvider');
-  }
+  if (!context) throw new Error('useApp must be used within AppProvider');
   return context;
 }
